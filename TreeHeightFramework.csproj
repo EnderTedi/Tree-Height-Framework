@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+		<Name>Tree Height Framework</Name>
+		<Version>1.0.0</Version>
+		<Authors>EnderTedi</Authors>
+		<UniqueID>EnderTedi.TreeHeightFramework</UniqueID>
+	  <MinimumApiVersion>4.0.0</MinimumApiVersion>
+	  <MinimumGameVersion>1.6</MinimumGameVersion>
+		<UpdateKeys>Nexus:????</UpdateKeys>
+	  <EnableHarmony>true</EnableHarmony>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Leclair.Stardew.ModManifestBuilder" Version="2.3.1" />
+    <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Docs\" />
+  </ItemGroup>
+
+</Project>
