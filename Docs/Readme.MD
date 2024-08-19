@@ -35,11 +35,15 @@ Field | Description
 ### Tree Sprites
 #### Wild Trees
 For Wild Trees the texture should be a 3 tile wide (48 pixel) texture with the height having to be a multiple of 16 pixels. For the stump the Wild Trees will use the sprite from the texture provided in `Data/WildTrees` and should not include it in the texture for the texture provided for the Tree Height Framework.
-An example tree texture: ![](https://i.imgur.com/3edeySK.png)
+
+An example tree texture: 
+![](https://i.imgur.com/3edeySK.png)
 
 #### Fruit Trees
 For Fruit Trees the texture should be a 12 tile wide (192 pixel) texture with the height having to be a multiple of 16 pixels. The Fruit Tree texture will be split into 4 3 tile wide (48 pixel) sections, each containing a sprite for each season (in the order: `Spring, Summer, Fall, Winter`).
-An example fruit tree texture: ![](https://i.imgur.com/yfA1dZs.png)
+
+An example fruit tree texture: 
+![](https://i.imgur.com/yfA1dZs.png)
 
 ### Examples
 #### Wild Tree Example
