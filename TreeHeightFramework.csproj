@@ -10,17 +10,13 @@
 		<UniqueID>EnderTedi.TreeHeightFramework</UniqueID>
 	  <MinimumApiVersion>4.0.0</MinimumApiVersion>
 	  <MinimumGameVersion>1.6</MinimumGameVersion>
-		<UpdateKeys>Nexus:????</UpdateKeys>
+		<UpdateKeys>Nexus:27123</UpdateKeys>
 	  <EnableHarmony>true</EnableHarmony>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Leclair.Stardew.ModManifestBuilder" Version="2.3.1" />
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.1.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Docs\" />
   </ItemGroup>
 
 </Project>
