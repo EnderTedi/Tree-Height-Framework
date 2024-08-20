@@ -4,10 +4,10 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-		<Name>Tree Height Framework</Name>
+		<Name>Tree Size Framework</Name>
 		<Version>1.0.0</Version>
 		<Authors>EnderTedi</Authors>
-		<UniqueID>EnderTedi.TreeHeightFramework</UniqueID>
+		<UniqueID>EnderTedi.TreeSizeFramework</UniqueID>
 	  <MinimumApiVersion>4.0.0</MinimumApiVersion>
 	  <MinimumGameVersion>1.6</MinimumGameVersion>
 		<UpdateKeys>Nexus:27123</UpdateKeys>

@@ -1,4 +1,4 @@
-**Tree Height Framework** is a [Stardew Valley](http://stardewvalley.net/) Mod which allows content creators to create wild and fruit trees with custom heights above the vanilla limit.
+**Tree Size Framework** is a [Stardew Valley](http://stardewvalley.net/) Mod which allows content creators to create wild and fruit trees with custom heights above the vanilla limit.
 
 ## Content
 - [For Players](#For-Players)
@@ -16,7 +16,7 @@
 
 ## For Modders
 ### Wild Tree Data
-The `EnderTedi.TreeHeightFramework/WildTreeData` and `EnderTedi.TreeHeightFramework/FruitTreeData` assets contain the definition for custom tree heights for trees, where the key is the tree's ID from `Data/WildTrees` and `Data/FruitTrees` respectively, with the value being a model with these fields:
+The `EnderTedi.TreeSizeFramework/WildTreeData` and `EnderTedi.TreeSizeFramework/FruitTreeData` assets contain the definition for custom tree heights for trees, where the key is the tree's ID from `Data/WildTrees` and `Data/FruitTrees` respectively, with the value being a model with these fields:
 
 Field | Description
 ----------- | -------
@@ -34,7 +34,7 @@ Field | Description
 
 ### Tree Sprites
 #### Wild Trees
-For Wild Trees the texture should be a 3 tile wide (48 pixel) texture with the height having to be a multiple of 16 pixels. For the stump the Wild Trees will use the sprite from the texture provided in `Data/WildTrees` and should not include it in the texture for the texture provided for the Tree Height Framework. You must also provide a default texture when adding to `Data/WildTrees` as that will be used if there's an error with your `WildTreeData` or this mod is uninstalled.
+For Wild Trees the texture should be a 3 tile wide (48 pixel) texture with the height having to be a multiple of 16 pixels. For the stump the Wild Trees will use the sprite from the texture provided in `Data/WildTrees` and should not include it in the texture for the texture provided for the Tree Size Framework. You must also provide a default texture when adding to `Data/WildTrees` as that will be used if there's an error with your `WildTreeData` or this mod is uninstalled.
 
 An example tree texture: 
 ![](https://i.imgur.com/3edeySK.png)
@@ -56,7 +56,7 @@ An example fruit tree texture:
     },
     {
         "Action": "EditData",
-        "Target": "EnderTedi.TreeHeightFramework/WildTreeData",
+        "Target": "EnderTedi.TreeSizeFramework/WildTreeData",
         "Entries": {
             "1": {
                 "Textures": [
@@ -85,7 +85,7 @@ For the texture:
     },
     {
         "Action": "EditData",
-        "Target": "EnderTedi.TreeHeightFramework/FruitTreeData",
+        "Target": "EnderTedi.TreeSizeFramework/FruitTreeData",
         "Entries": {
             "628": {
                 "Texture": "Textures/FruitTree",

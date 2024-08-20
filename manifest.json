@@ -7,14 +7,14 @@
    | 
    */
   "$schema": "https://smapi.io/schemas/manifest.json",
-  "UniqueID": "EnderTedi.TreeHeightFramework",
-  "Name": "Tree Height Framework",
+  "UniqueID": "EnderTedi.TreeSizeFramework",
+  "Name": "Tree Size Framework",
   "Author": "EnderTedi",
   "Version": "1.0.0-Debug",
   "Description": "A framework which allows bigger (or smaller) wild and fruit trees.",
   "MinimumApiVersion": "4.0.0",
   "MinimumGameVersion": "1.6",
-  "EntryDll": "TreeHeightFramework.dll",
+  "EntryDll": "TreeSizeFramework.dll",
   "UpdateKeys": [
     "Nexus:27123"
   ]
