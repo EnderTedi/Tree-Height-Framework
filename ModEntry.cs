@@ -7,8 +7,8 @@ using StardewValley.TerrainFeatures;
 using Microsoft.Xna.Framework;
 using StardewValley.ItemTypeDefinitions;
 using TreeHeightFramework;
-using StardewValley.Projectiles;
 using StardewValley.Tools;
+using StardewValley.GameData.WildTrees;
 
 namespace BiggerTrees
 {
@@ -40,37 +40,36 @@ namespace BiggerTrees
             }
         }
 
-        public static Texture2D? TreeTexture(CWildTreeData? wildTreeData = null, CFruitTreeData? fruitTreeData = null)
+        public static Texture2D? ChooseTexture(List<WildTreeTextureData>? data, GameLocation location)
         {
-            if (wildTreeData != null)
+            if (data != null && data?.Count > 0)
             {
-                if (wildTreeData.Textures is null)
+                foreach (WildTreeTextureData entry in data)
                 {
-                    return null;
-                }
-                foreach (CWildTreeData.TextureData data1 in wildTreeData.Textures)
-                {
-                    if (data1.Texture is null) { continue; }
-                    if ((data1.Condition == null || GameStateQuery.CheckConditions(data1.Condition)) && (Game1.GetSeasonKeyForLocation(Game1.player.currentLocation).Equals(data1.Season, StringComparison.OrdinalIgnoreCase) || data1.Season == null))
+                    if (location != null && location.IsGreenhouse && entry.Season.HasValue)
                     {
-                        if (Game1.content.DoesAssetExist<Texture2D>(data1.Texture))
-                            return Game1.content.Load<Texture2D>(data1.Texture);
-                        else continue;
+                        if (entry.Season == Season.Spring)
+                        {
+                            if (Game1.content.DoesAssetExist<Texture2D>(entry.Texture))
+                                return Game1.content.Load<Texture2D>(entry.Texture);
+                        }
+                    }
+                    else if ((!entry.Season.HasValue || entry.Season == location?.GetSeason()) && (entry.Condition == null || GameStateQuery.CheckConditions(entry.Condition, location)))
+                    {
+
+                        if (Game1.content.DoesAssetExist<Texture2D>(entry.Texture))
+                            return Game1.content.Load<Texture2D>(entry.Texture);
                     }
                 }
-            }
-            else if (fruitTreeData != null)
-            {
-                if (fruitTreeData.Texture is null) return null;
-                else if (Game1.content.DoesAssetExist<Texture2D>(fruitTreeData.Texture))
-                    return Game1.content.Load<Texture2D>(fruitTreeData.Texture);
+                if (Game1.content.DoesAssetExist<Texture2D>(data[0].Texture))
+                    return Game1.content.Load<Texture2D>(data[0].Texture);
             }
             return null;
         }
     }
 
     [HarmonyPatch(typeof(GameLocation), nameof(GameLocation.performToolAction))]
-    public static class performToolAction
+    public static class PerformToolAction
     {
         public static bool Prefix(GameLocation __instance, Tool t, int tileX, int tileY)
         {
@@ -95,10 +94,9 @@ namespace BiggerTrees
     {
         public static bool Prefix(GameLocation __instance, int x, int y, ref bool __result)
         {
-            Vector2 tile = new(x, y);
             if (__instance.terrainFeatures != null)
             {
-                Rectangle tileRect = new Rectangle(x * 64, y * 64, 64, 64);
+                Rectangle tileRect = new(x * 64, y * 64, 64, 64);
                 foreach (TerrainFeature feature in __instance.terrainFeatures.Values)
                 {
                     if (feature is Tree or FruitTree && feature.getBoundingBox().Intersects(tileRect))
@@ -197,6 +195,55 @@ namespace BiggerTrees
         }
     }
 
+    [HarmonyPatch(typeof(Tree), nameof(Tree.getRenderBounds))]
+    public static class TreeGetRenderBounds
+    {
+        public static bool Prefix(Tree __instance, ref Rectangle __result)
+        {
+            var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
+            Vector2 tileLocation = __instance.Tile;
+            if (__instance.stump.Value || __instance.growthStage.Value < 5 || !tData.TryGetValue(__instance.treeType.Value, out var treeData))
+            {
+                return true;
+            }
+            __result = new Rectangle((int)(tileLocation.X - (treeData.TreeWidth / 2 )) * 64, (int)(tileLocation.Y - treeData.TreeHeight) * 64, treeData.TreeWidth * 64 + 392, treeData.TreeHeight * 64 + 128);
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(FruitTree), nameof(FruitTree.getRenderBounds))]
+    public static class FruitTreeGetRenderBounds
+    {
+        public static bool Prefix(FruitTree __instance, ref Rectangle __result)
+        {
+            var tData = Game1.content.Load<Dictionary<string, CFruitTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/FruitTreeData");
+            Vector2 tileLocation = __instance.Tile;
+            if (__instance.stump.Value || __instance.growthStage.Value < 5 || !tData.TryGetValue(__instance.treeId.Value, out var treeData))
+            {
+                return true;
+            }
+            __result = new Rectangle((int)(tileLocation.X - (treeData.TreeWidth / 2 )) * 64, (int)(tileLocation.Y - treeData.TreeHeight) * 64, treeData.TreeWidth * 64 + 392, treeData.TreeHeight * 64 + 128);
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(GameLocation), nameof(GameLocation.drawAboveFrontLayer))]
+    public static class DrawAboveFrontLayer
+    {
+        public static bool Prefix(GameLocation __instance, SpriteBatch b)
+        {
+            Rectangle viewport = new(Game1.viewport.X, Game1.viewport.Y, Game1.viewport.Width, Game1.viewport.Height);
+            foreach (TerrainFeature feat in __instance.terrainFeatures.Values)
+            {
+                if (feat is Tree or FruitTree && feat.getRenderBounds().Intersects(viewport))
+                {
+                    feat.draw(b);
+                }
+            }
+            return true;
+        }
+    }
+
     [HarmonyPatch(typeof(Tree), nameof(Tree.getBoundingBox))]
     public static class TreeGetBoundingBox
     {
@@ -246,47 +293,44 @@ namespace BiggerTrees
     {
         public static bool Prefix(Tree __instance, SpriteBatch spriteBatch, List<Leaf> ___leaves)
         {
-
             var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
-            if (!tData.ContainsKey(__instance.treeType.Value))
+            if (!tData.TryGetValue(__instance.treeType.Value, out var treeData))
             {
                 return true;
             }
-            var treeData = tData[__instance.treeType.Value];
-            Texture2D? texture = ModEntry.TreeTexture(wildTreeData: treeData);
+
+            Texture2D? texture = ModEntry.ChooseTexture(treeData.Textures, __instance.Location);
+            Texture2D? stumpTexture = ModEntry.ChooseTexture(treeData.StumpTextures, __instance.Location);
             Vector2 tileLocation = __instance.Tile;
             float baseSortPosition = __instance.getBoundingBox().Bottom;
-            if (texture == null || __instance.isTemporarilyInvisible || __instance.texture.Value == null || !Tree.TryGetData(__instance.treeType.Value, out var data) || __instance.growthStage.Value < 5)
+            if (texture == null || stumpTexture == null || __instance.isTemporarilyInvisible || __instance.texture.Value == null || !Tree.TryGetData(__instance.treeType.Value, out var data) || __instance.growthStage.Value < 5)
             {
                 return true;
             }
-            else
-            {
-                if (!__instance.stump.Value || __instance.falling.Value)
-                {
-                    if (__instance.IsLeafy())
-                        spriteBatch.Draw(Game1.mouseCursors, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - 51f, tileLocation.Y * 64f - 16f)), Tree.shadowSourceRect, Color.White * ((float)Math.PI / 2f - Math.Abs(__instance.shakeRotation)), 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 1E-06f);
-                    else
-                        spriteBatch.Draw(Game1.mouseCursors_1_6, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - 51f, tileLocation.Y * 64f - 16f)), new Rectangle(469, 298, 42, 31), Color.White * ((float)Math.PI / 2f - Math.Abs(__instance.shakeRotation)), 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 1E-06f);
-                    
-                    Rectangle source_rect = new(0, 0, treeData.TreeWidth * 16, treeData.TreeHeight * 16);
-                    if ((data.UseAlternateSpriteWhenSeedReady && __instance.hasSeed.Value) || (data.UseAlternateSpriteWhenNotShaken && !__instance.wasShakenToday.Value))
-                        source_rect.X = treeData.TreeWidth * 16;
-                    else
-                        source_rect.X = 0;
-                    if (__instance.hasMoss.Value)
-                        source_rect.X = treeData.TreeWidth * 32;
 
-                    spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + 32f - (treeData.TreeWidth - 3) / 2  * 64f, tileLocation.Y * 64f + 64f - ((treeData.TreeHeight - 6) * 64f))), source_rect, Color.White * __instance.alpha, __instance.shakeRotation, new Vector2(24f, 96f), 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (baseSortPosition + 2f) / 10000f - tileLocation.X / 1000000f);
-                }
-                Rectangle stumpSource = new(treeData.TreeWidth * 16, treeData.TreeHeight * 16 - 32, treeData.TreeWidth * 16, 32);
+            if (!__instance.stump.Value || __instance.falling.Value)
+            {
+                if (__instance.IsLeafy())
+                    spriteBatch.Draw(Game1.mouseCursors, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - 51f, tileLocation.Y * 64f - 16f)), Tree.shadowSourceRect, Color.White * ((float)Math.PI / 2f - Math.Abs(__instance.shakeRotation)), 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 1E-06f);
+                else
+                    spriteBatch.Draw(Game1.mouseCursors_1_6, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - 51f, tileLocation.Y * 64f - 16f)), new Rectangle(469, 298, 42, 31), Color.White * ((float)Math.PI / 2f - Math.Abs(__instance.shakeRotation)), 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 1E-06f);
+
+                Rectangle source_rect = new(0, 0, treeData.TreeWidth * 16, treeData.TreeHeight * 16);
+                if ((data.UseAlternateSpriteWhenSeedReady && __instance.hasSeed.Value) || (data.UseAlternateSpriteWhenNotShaken && !__instance.wasShakenToday.Value))
+                    source_rect.X = treeData.TreeWidth * 16;
+                else
+                    source_rect.X = 0;
                 if (__instance.hasMoss.Value)
-                    stumpSource.X += 96;
-                if (__instance.health.Value >= 1f || (!__instance.falling.Value && __instance.health.Value > -99f))
-                    spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (treeData.TreeWidth - 1) / 2 * 64f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / (double)__instance.shakeTimer) * 3f) : 0f), tileLocation.Y * 64f - 64f)), stumpSource, Color.White * __instance.alpha, 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, baseSortPosition / 10000f);
-                if (__instance.stump.Value && __instance.health.Value < 4f && __instance.health.Value > -99f)
-                    spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (treeData.TreeWidth - 1) / 2 * 64f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / (double)__instance.shakeTimer) * 3f) : 0f), tileLocation.Y * 64f)), new Rectangle(Math.Min(2, (int)(3f - __instance.health.Value)) * 16, 144, 16, 16), Color.White * __instance.alpha, 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (baseSortPosition + 1f) / 10000f);
+                    source_rect.X = treeData.TreeWidth * 32;
+
+                spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (treeData.TreeWidth - 3) / 2 * 64f + (treeData.TreeWidth % 2 == 1 ? 32f : 0f), tileLocation.Y * 64f + 64f - ((treeData.TreeHeight - 6) * 64f))), source_rect, Color.White * __instance.alpha, __instance.shakeRotation, new Vector2(24f, 96f), 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (baseSortPosition + 2f) / 10000f - tileLocation.X / 1000000f);
             }
+
+            Rectangle stumpSource = new(0, 0, stumpTexture.Width, 32);
+            if (__instance.health.Value >= 1f || (!__instance.falling.Value && __instance.health.Value > -99f))
+                spriteBatch.Draw(stumpTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (stumpTexture.Width - 16) * 2f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / (double)__instance.shakeTimer) * 3f) : 0f), tileLocation.Y * 64f - 64f)), stumpSource, Color.White * __instance.alpha, 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, baseSortPosition / 10000f);
+            if (__instance.stump.Value && __instance.health.Value < 4f && __instance.health.Value > -99f)
+                spriteBatch.Draw(stumpTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (stumpTexture.Width - 16) * 2f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / (double)__instance.shakeTimer) * 3f) : 0f), tileLocation.Y * 64f - 64f)), stumpSource, Color.White * __instance.alpha, 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (baseSortPosition + 1f) / 10000f);
 
             foreach (Leaf i in ___leaves)
                 spriteBatch.Draw(__instance.texture.Value, Game1.GlobalToLocal(Game1.viewport, i.position), new Rectangle(16 + i.type % 2 * 8, 112 + i.type / 2 * 8, 8, 8), Color.White, i.rotation, Vector2.Zero, 4f, SpriteEffects.None, baseSortPosition / 10000f + 0.01f);
@@ -301,55 +345,55 @@ namespace BiggerTrees
         public static bool Prefix(FruitTree __instance, SpriteBatch spriteBatch, List<Leaf> ___leaves)
         {
             var tData = Game1.content.Load<Dictionary<string, CFruitTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/FruitTreeData");
-            if (!tData.ContainsKey(__instance.treeId.Value))
+            if (!tData.TryGetValue(__instance.treeId.Value, out var treeData))
+            {
                 return true;
+            }
 
-            var treeData = tData[__instance.treeId.Value];
-            Texture2D? customTexture = ModEntry.TreeTexture(fruitTreeData: treeData);
-            if (customTexture == null || __instance.isTemporarilyInvisible || __instance.texture == null || __instance.growthStage.Value < 4)
-                return true;
-
-            int seasonIndex = Game1.GetSeasonIndexForLocation(__instance.Location);
-            int spriteRow = __instance.GetSpriteRowNumber();
+            Texture2D? texture = ModEntry.ChooseTexture(treeData.Textures, __instance.Location);
+            Texture2D? stumpTexture = ModEntry.ChooseTexture(treeData.StumpTextures, __instance.Location);
             Vector2 tileLocation = __instance.Tile;
-            Rectangle boundingBox = __instance.getBoundingBox();
+            float baseSortPosition = __instance.getBoundingBox().Bottom;
+            if (texture == null || stumpTexture == null || __instance.isTemporarilyInvisible || __instance.texture == null || __instance.growthStage.Value < 4)
+                return true;
 
             if (__instance.GreenHouseTileTree)
-            {
                 spriteBatch.Draw(Game1.mouseCursors, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f, tileLocation.Y * 64f)), new Rectangle(669, 1957, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 1E-08f);
-            }
 
             if (!__instance.stump.Value || __instance.falling.Value)
             {
-                bool ignoreSeason = __instance.IgnoresSeasonsHere();
-                if (!__instance.falling.Value)
-                    spriteBatch.Draw(customTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + 32f, tileLocation.Y * 64f + 64f)), new Rectangle(ignoreSeason ? 1 : seasonIndex * 3 * 16, 0 + (treeData.TreeHeight - 1) * 16, 48, 16), (__instance.struckByLightningCountdown.Value > 0) ? (Color.Gray * __instance.alpha) : (Color.White * __instance.alpha), 0f, new Vector2(24f, 16f), 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 1E-07f);
-                spriteBatch.Draw(customTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + 32f, tileLocation.Y * 64f + 64f - ((treeData.TreeHeight - 5) * 64f))), new Rectangle(ignoreSeason ? 1 : seasonIndex * 3 * 16, 0, 48, (treeData.TreeHeight - 1) * 16), (__instance.struckByLightningCountdown.Value > 0) ? (Color.Gray * __instance.alpha) : (Color.White * __instance.alpha), __instance.shakeRotation, new Vector2(24f, 80f), 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (float)boundingBox.Bottom / 10000f + 0.001f - tileLocation.X / 1000000f);
+                Rectangle source_rect = new(0, 0, treeData.TreeWidth * 16, treeData.TreeHeight * 16);
+
+                spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (treeData.TreeWidth - 3) / 2 * 64f + treeData.TreeWidth % 2 == 1 ? 32f : 0, tileLocation.Y * 64f + 64f - ((treeData.TreeHeight - 6) * 64f))), source_rect, Color.White * __instance.alpha, __instance.shakeRotation, new Vector2(24f, 96f), 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (baseSortPosition + 2f) / 10000f - tileLocation.X / 1000000f);
             }
 
+            Rectangle stumpSource = new(0, 0, stumpTexture.Width, 32);
             if (__instance.health.Value >= 1f || (!__instance.falling.Value && __instance.health.Value > -99f))
-                spriteBatch.Draw(__instance.texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + 32f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / __instance.shakeTimer) * 2f) : 0f), tileLocation.Y * 64f + 64f)), new Rectangle(384, spriteRow * 5 * 16 + 48, 48, 32), (__instance.struckByLightningCountdown.Value > 0) ? (Color.Gray * __instance.alpha) : (Color.White * __instance.alpha), 0f, new Vector2(24f, 32f), 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (__instance.stump.Value && !__instance.falling.Value) ? (boundingBox.Bottom / 10000f) : (boundingBox.Bottom / 10000f - 0.001f - tileLocation.X / 1000000f));
+                spriteBatch.Draw(stumpTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (stumpTexture.Width - 16) * 2f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / (double)__instance.shakeTimer) * 3f) : 0f), tileLocation.Y * 64f - 64f)), stumpSource, Color.White * __instance.alpha, 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, baseSortPosition / 10000f);
+            if (__instance.stump.Value && __instance.health.Value < 4f && __instance.health.Value > -99f)
+                spriteBatch.Draw(stumpTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - (stumpTexture.Width - 16) * 2f + ((__instance.shakeTimer > 0f) ? ((float)Math.Sin(Math.PI * 2.0 / (double)__instance.shakeTimer) * 3f) : 0f), tileLocation.Y * 64f - 64f)), stumpSource, Color.White * __instance.alpha, 0f, Vector2.Zero, 4f, __instance.flipped.Value ? SpriteEffects.FlipHorizontally : SpriteEffects.None, (baseSortPosition + 1f) / 10000f);
 
             for (int i = 0; i < __instance.fruit.Count; i++)
             {
                 ParsedItemData obj = (__instance.struckByLightningCountdown.Value > 0) ? ItemRegistry.GetDataOrErrorItem("(O)382") : ItemRegistry.GetDataOrErrorItem(__instance.fruit[i].QualifiedItemId);
-                Texture2D texture = obj.GetTexture();
+                Texture2D objTexture = obj.GetTexture();
                 Rectangle sourceRect2 = obj.GetSourceRect();
                 switch (i)
                 {
                     case 0:
-                        spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - 64f + tileLocation.X * 200f % 64f / 2f, tileLocation.Y * 64f - 192f - tileLocation.X % 64f / 3f) - new Vector2(0, (treeData.TreeHeight - 5) * 64f)), sourceRect2, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, boundingBox.Bottom / 10000f + 0.002f - tileLocation.X / 1000000f);
+                        spriteBatch.Draw(objTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f - 64f + tileLocation.X * 200f % 64f / 2f, tileLocation.Y * 64f - 192f - tileLocation.X % 64f / 3f) - new Vector2(0, (treeData.TreeHeight - 5) * 64f)), sourceRect2, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, baseSortPosition);
                         break;
                     case 1:
-                        spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + 32f, tileLocation.Y * 64f - 256f + tileLocation.X * 232f % 64f / 3f) - new Vector2(0, (treeData.TreeHeight - 5) * 64f)), sourceRect2, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, boundingBox.Bottom / 10000f + 0.002f - tileLocation.X / 1000000f);
+                        spriteBatch.Draw(objTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + 32f, tileLocation.Y * 64f - 256f + tileLocation.X * 232f % 64f / 3f) - new Vector2(0, (treeData.TreeHeight - 5) * 64f)), sourceRect2, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, baseSortPosition);
                         break;
                     case 2:
-                        spriteBatch.Draw(texture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + tileLocation.X * 200f % 64f / 3f, tileLocation.Y * 64f - 160f + tileLocation.X * 200f % 64f / 3f) - new Vector2(0, (treeData.TreeHeight - 5) * 64f)), sourceRect2, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.FlipHorizontally, boundingBox.Bottom / 10000f + 0.002f - tileLocation.X / 1000000f);
+                        spriteBatch.Draw(objTexture, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f + tileLocation.X * 200f % 64f / 3f, tileLocation.Y * 64f - 160f + tileLocation.X * 200f % 64f / 3f) - new Vector2(0, (treeData.TreeHeight - 5) * 64f)), sourceRect2, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.FlipHorizontally, baseSortPosition);
                         break;
                 }
             }
-            foreach (Leaf j in ___leaves)
-                spriteBatch.Draw(__instance.texture, Game1.GlobalToLocal(Game1.viewport, j.position), new Rectangle((24 + seasonIndex) * 16, spriteRow * 5 * 16, 8, 8), Color.White, j.rotation, Vector2.Zero, 4f, SpriteEffects.None, (float)boundingBox.Bottom / 10000f + 0.01f);
+
+            foreach (Leaf i in ___leaves)
+                spriteBatch.Draw(__instance.texture, Game1.GlobalToLocal(Game1.viewport, i.position), new Rectangle(16 + i.type % 2 * 8, 112 + i.type / 2 * 8, 8, 8), Color.White, i.rotation, Vector2.Zero, 4f, SpriteEffects.None, baseSortPosition / 10000f + 0.01f);
 
             return false;
         }
