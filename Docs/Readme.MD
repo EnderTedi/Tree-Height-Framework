@@ -47,6 +47,7 @@ Height: `TreeHeight` * 16 Pixels. For a tree with a dirth of 6 that would be 96 
 You are highly encouraged to also provide a default texture when adding a custom tree to `Data/WildTrees` or `Data/FruitTrees` as that will be the texture used if there's an error with your `WildTreeData` or this mod is uninstalled or stops working.
 
 An example tree and stump texture:
+
 ![](https://i.imgur.com/3edeySK.png)
 ![](https://i.imgur.com/XE8NXlY.png)
 
@@ -120,5 +121,6 @@ There's an example pack in the Optional Files section on Nexus Mods, however if 
 }
 ```
 For the tree and stump textures:
+
 ![](https://i.imgur.com/3edeySK.png)
 ![](https://i.imgur.com/XE8NXlY.png)
