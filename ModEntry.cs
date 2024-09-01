@@ -7,6 +7,8 @@ using StardewValley.TerrainFeatures;
 using Microsoft.Xna.Framework;
 using StardewValley.ItemTypeDefinitions;
 using StardewValley.Tools;
+using SpaceCore.Events;
+using SpaceShared.APIs;
 
 namespace TreeSizeFramework
 {
@@ -15,34 +17,33 @@ namespace TreeSizeFramework
 #nullable disable
         public static ModEntry instance;
 #nullable enable
-        public static Dictionary<Tree, List<TreeTextureData>> WildTreeTextures = new();
-        public static int Trees = 0;
-        public static Dictionary<Tree, string> WildTrees = new();
-        public static Dictionary<FruitTree, List<TreeTextureData>> FruitTreeTextures = new();
-        public static int FTrees = 0;
-        public static Dictionary<FruitTree, string> FruitTrees = new();
+
+        public static Dictionary<GameLocation, Dictionary<Vector2, List<TreeTextureData>>> TreeTextures = new();
+        public static Dictionary<GameLocation, Dictionary<Vector2, string>> TreeIDs = new();
+        private readonly static Dictionary<GameLocation, Season> seasons = new();
 
         public override void Entry(IModHelper helper)
         {
             instance = this;
-            
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
             helper.Events.Content.AssetRequested += OnAssetRequested;
             helper.Events.GameLoop.TimeChanged += OnTimeChanged;
             helper.Events.GameLoop.DayStarted += OnDayStarted;
             helper.Events.Player.Warped += OnWarped;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
-            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
 
-            helper.Events.GameLoop.SaveLoaded += ReadData;
-            helper.Events.GameLoop.Saved += WriteData;
-            
             var harmony = new Harmony(ModManifest.UniqueID);
             harmony.PatchAll(typeof(ModEntry).Assembly);
         }
 
-        private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
         {
-            ReloadTexture("SaveLoaded");
+            var SpaceCore = Helper.ModRegistry.GetApi<ISpaceCoreApi>("spacechase0.SpaceCore");
+
+            if (SpaceCore != null)
+            {
+                SpaceCore.regi()
+            }
         }
 
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
@@ -59,6 +60,18 @@ namespace TreeSizeFramework
 
         private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
+            var locations = Game1.locations.Where(l => l.terrainFeatures.Values.Any(x => x is FruitTree or Tree));
+
+            foreach (GameLocation l in locations)
+            {
+                if (seasons.ContainsKey(l) && seasons[l] != Game1.GetSeasonForLocation(l))
+                {
+                    TreeTextures.Remove(l);
+                }
+                seasons.Remove(l);
+                seasons.Add(l, Game1.GetSeasonForLocation(l));
+            }
+
             ReloadTexture("DayStarted");
         }
 
@@ -70,33 +83,34 @@ namespace TreeSizeFramework
         private static void ReloadTexture(string UpdateRate)
         {
             var wtData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{instance.ModManifest.UniqueID}/WildTreeData");
-            List<string> wkeys = wtData.Keys.ToList();
-
-            for (int i = 0; i < wkeys.Count; i++)
-            {
-                var data = wtData[wkeys[i]];
-                for (int j = 0; j < Trees + 1; j++)
-                {
-                    if (!WildTrees.Any(l => l.Value == $"{wkeys[i]}:{j}") || !WildTrees.Any(l => l.Value == $"{wkeys[i]}:{j}") || !WildTreeTextures.ContainsKey(WildTrees.FirstOrDefault(l => l.Value == $"{wkeys[i]}:{j}").Key)) continue;
-                    if (data.UpdateRate.Trim().Split(',').Any(l => string.Equals(l.Trim(), UpdateRate, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        WildTreeTextures.Remove(WildTrees.FirstOrDefault(l => l.Value == $"{wkeys[i]}:{j}").Key);
-                    }
-                }
-            }
-
             var ftData = Game1.content.Load<Dictionary<string, CFruitTreeData>>($"{instance.ModManifest.UniqueID}/FruitTreeData");
-            List<string> fkeys = ftData.Keys.ToList();
+            
 
-            for (int i = 0; i < fkeys.Count; i++)
+            foreach (GameLocation location in Game1.locations)
             {
-                var data = ftData[fkeys[i]];
-                for (int j = 0; j < Trees + 1; j++)
+                if (!TreeTextures.TryGetValue(location, out var data) || !TreeIDs.TryGetValue(location, out var iddata)) continue;
+
+                var Trees = location.terrainFeatures.Values.Where(t => t is FruitTree or Tree);
+
+                foreach (TerrainFeature f in Trees)
                 {
-                    if (!FruitTrees.Any(l => l.Value == $"{fkeys[i]}:{j}") || FruitTrees.FirstOrDefault(l => l.Value == $"{fkeys[i]}:{j}").Key != null || !FruitTreeTextures.ContainsKey(FruitTrees.FirstOrDefault(l => l.Value == $"{fkeys[i]}:{j}").Key)) continue;
-                    if (data.UpdateRate.Trim().Split(',').Any(l => string.Equals(l, UpdateRate, StringComparison.OrdinalIgnoreCase)))
+                    if (!data.ContainsKey(f.Tile) || !iddata.TryGetValue(f.Tile, out var id)) continue;
+                    if (f is Tree)
                     {
-                        FruitTreeTextures.Remove(FruitTrees.FirstOrDefault(l => l.Value == $"{fkeys[i]}:{j}").Key);
+                        var tdata = wtData[id.Split(':')[0]];
+                        if (tdata.UpdateRate.Split(',').Any(l => string.Equals(l.Trim(), UpdateRate, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            TreeTextures[location].Remove(f.Tile);
+                        }
+                    }
+
+                    if (f is FruitTree)
+                    {
+                        var tdata = ftData[id.Split(':')[0]];
+                        if (tdata.UpdateRate.Split(',').Any(l => string.Equals(l.Trim(), UpdateRate, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            TreeTextures[location].Remove(f.Tile);
+                        }
                     }
                 }
             }
@@ -114,17 +128,14 @@ namespace TreeSizeFramework
             }
         }
 
-        public static string? ChooseTexture(List<TreeTextureData>? data, GameLocation location, bool stump, Tree? tree = null, FruitTree? fruitTree = null)
+        public static string? ChooseTexture(List<TreeTextureData>? data, GameLocation location, Vector2 tile, bool stump)
         {
             if (data != null && data?.Count > 0)
             {
-                if (tree != null && WildTreeTextures.ContainsKey(tree) && WildTreeTextures[tree][stump ? 1 : 0].Texture != null)
+                if (location != null && TreeTextures.ContainsKey(location) && TreeTextures[location].ContainsKey(tile) && TreeTextures[location][tile][stump ? 1 : 0].Texture != null)
                 {
-                    return WildTreeTextures[tree][stump ? 1 : 0].Texture;
-                }
-                if (fruitTree != null && FruitTreeTextures.ContainsKey(fruitTree) && FruitTreeTextures[fruitTree][stump ? 1 : 0].Texture != null)
-                {
-                    return FruitTreeTextures[fruitTree][stump ? 1 : 0].Texture;
+                    if (Game1.content.DoesAssetExist<Texture2D>(TreeTextures[location][tile][stump ? 1 : 0].Texture))
+                    return TreeTextures[location][tile][stump ? 1 : 0].Texture;
                 }
 
                 foreach (TreeTextureData entry in data)
@@ -378,20 +389,19 @@ namespace TreeSizeFramework
     {
         public static bool Prefix(Tree __instance, SpriteBatch spriteBatch, List<Leaf> ___leaves)
         {
+            if (!Context.IsWorldReady)
+            {
+                return true;
+            }
+
             var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
             if (!tData.TryGetValue(__instance.treeType.Value, out var treeData))
             {
                 return true;
             }
 
-            if (!ModEntry.WildTrees.ContainsKey(__instance))
-            {
-                ModEntry.WildTrees.Add(__instance, $"{__instance.treeType.Value}:{ModEntry.Trees}");
-                ModEntry.Trees++;
-            }
-
-            string? tex = ModEntry.ChooseTexture(treeData.Textures, __instance.Location, false, tree: __instance);
-            string? stumpTex = ModEntry.ChooseTexture(treeData.StumpTextures, __instance.Location, true, tree: __instance);
+            string? tex = ModEntry.ChooseTexture(treeData.Textures, __instance.Location, __instance.Tile, false);
+            string? stumpTex = ModEntry.ChooseTexture(treeData.StumpTextures, __instance.Location, __instance.Tile, true);
             Texture2D? texture = Game1.content.Load<Texture2D>(tex);
             Texture2D? stumpTexture = Game1.content.Load<Texture2D>(stumpTex);
             Vector2 tileLocation = __instance.Tile;
@@ -400,9 +410,29 @@ namespace TreeSizeFramework
             if (tex == null || stumpTex == null || texture == null || stumpTexture == null || __instance.isTemporarilyInvisible || __instance.texture.Value == null || !Tree.TryGetData(__instance.treeType.Value, out var data) || __instance.growthStage.Value < 5)
                 return true;
 
-#pragma warning disable CS8604 // Possible null reference argument.
-            ModEntry.WildTreeTextures.TryAdd(__instance, new List<TreeTextureData>() { treeData.Textures.Find(t => t.Texture == tex), treeData.StumpTextures.Find(t => t.Texture == stumpTex) });
-#pragma warning restore CS8604 // Possible null reference argument.
+            if (!ModEntry.TreeTextures.ContainsKey(__instance.Location))
+            {
+                ModEntry.TreeTextures.Add(__instance.Location, new Dictionary<Vector2, List<TreeTextureData>>());
+                ModEntry.TreeTextures[__instance.Location].Add(tileLocation, new List<TreeTextureData>() { treeData.Textures.First(t => t.Texture == tex), treeData.StumpTextures.First(s => s.Texture == stumpTex) });
+            }
+
+            if (ModEntry.TreeTextures.ContainsKey(__instance.Location))
+            {
+                ModEntry.TreeTextures[__instance.Location].Remove(tileLocation);
+                ModEntry.TreeTextures[__instance.Location].Add(tileLocation, new List<TreeTextureData>() { treeData.Textures.First(t => t.Texture == tex), treeData.StumpTextures.First(s => s.Texture == stumpTex) });
+            }
+
+            if (!ModEntry.TreeIDs.ContainsKey(__instance.Location))
+            {
+                ModEntry.TreeIDs.Add(__instance.Location, new Dictionary<Vector2, string>());
+                ModEntry.TreeIDs[__instance.Location].Add(tileLocation, $"{__instance.treeType.Value}:{__instance.Location}:{__instance.Tile}");
+            }
+
+            if (ModEntry.TreeTextures.ContainsKey(__instance.Location))
+            {
+                ModEntry.TreeIDs[__instance.Location].Remove(tileLocation);
+                ModEntry.TreeIDs[__instance.Location].Add(tileLocation, $"{__instance.treeType.Value}:{__instance.Location}:{__instance.Tile}");
+            }
 
             if (!__instance.stump.Value || __instance.falling.Value)
             {
@@ -440,19 +470,19 @@ namespace TreeSizeFramework
     {
         public static bool Prefix(FruitTree __instance, SpriteBatch spriteBatch, List<Leaf> ___leaves)
         {
+            if (!Context.IsWorldReady)
+            {
+                return true;
+            }
+
             var tData = Game1.content.Load<Dictionary<string, CFruitTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/FruitTreeData");
             if (!tData.TryGetValue(__instance.treeId.Value, out var treeData))
             {
                 return true;
             }
-            
-            if (!ModEntry.FruitTrees.ContainsKey(__instance))
-            {
-                ModEntry.FruitTrees.Add(__instance, $"{__instance.treeId.Value}:{ModEntry.FTrees}");
-                ModEntry.FTrees++;
-            }
-            string? tex = ModEntry.ChooseTexture(treeData.Textures, __instance.Location, false, fruitTree: __instance);
-            string? stumpTex = ModEntry.ChooseTexture(treeData.StumpTextures, __instance.Location, true, fruitTree: __instance);
+
+            string? tex = ModEntry.ChooseTexture(treeData.Textures, __instance.Location, __instance.Tile, false);
+            string? stumpTex = ModEntry.ChooseTexture(treeData.StumpTextures, __instance.Location, __instance.Tile, true);
             Texture2D? texture = Game1.content.Load<Texture2D>(tex);
             Texture2D? stumpTexture = Game1.content.Load<Texture2D>(stumpTex);
             Vector2 tileLocation = __instance.Tile;
@@ -461,9 +491,27 @@ namespace TreeSizeFramework
             if (tex == null || stumpTex == null || texture == null || stumpTexture == null || __instance.isTemporarilyInvisible || __instance.texture == null || __instance.growthStage.Value < 4)
                 return true;
 
-#pragma warning disable CS8604 // Possible null reference argument.
-            ModEntry.FruitTreeTextures.TryAdd(__instance, new List<TreeTextureData>() { treeData.Textures.Find(t => t.Texture == tex), treeData.StumpTextures.Find(t => t.Texture == stumpTex) });
-#pragma warning restore CS8604 // Possible null reference argument.
+            if (!ModEntry.TreeTextures.ContainsKey(__instance.Location))
+            {
+                ModEntry.TreeTextures.Add(__instance.Location, new Dictionary<Vector2, List<TreeTextureData>>());
+                ModEntry.TreeTextures[__instance.Location].Add(tileLocation, new List<TreeTextureData>() { treeData.Textures.First(t => t.Texture == tex), treeData.StumpTextures.First(s => s.Texture == stumpTex) });
+            }
+            else
+            {
+                ModEntry.TreeTextures[__instance.Location].Remove(tileLocation);
+                ModEntry.TreeTextures[__instance.Location].Add(tileLocation, new List<TreeTextureData>() { treeData.Textures.First(t => t.Texture == tex), treeData.StumpTextures.First(s => s.Texture == stumpTex) });
+            }
+
+            if (!ModEntry.TreeIDs.ContainsKey(__instance.Location))
+            {
+                ModEntry.TreeIDs.Add(__instance.Location, new Dictionary<Vector2, string>());
+                ModEntry.TreeIDs[__instance.Location].Add(tileLocation, $"{__instance.treeId.Value}:{__instance.Location}:{__instance.Tile}");
+            }
+            else
+            {
+                ModEntry.TreeIDs[__instance.Location].Remove(tileLocation);
+                ModEntry.TreeIDs[__instance.Location].Add(tileLocation, $"{__instance.treeId.Value}:{__instance.Location}:{__instance.Tile}");
+            }
 
             if (__instance.GreenHouseTileTree)
                 spriteBatch.Draw(Game1.mouseCursors, Game1.GlobalToLocal(Game1.viewport, new Vector2(tileLocation.X * 64f, tileLocation.Y * 64f)), new Rectangle(669, 1957, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 1E-08f);
@@ -504,6 +552,15 @@ namespace TreeSizeFramework
                 spriteBatch.Draw(__instance.texture, Game1.GlobalToLocal(Game1.viewport, i.position), new Rectangle(16 + i.type % 2 * 8, 112 + i.type / 2 * 8, 8, 8), Color.White, i.rotation, Vector2.Zero, 4f, SpriteEffects.None, baseSortPosition / 10000f + 0.01f);
 
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(Tree), nameof(Tree.initNetFields))]
+    public static class TreeInitNetFields
+    {
+        public static void Postfix(Tree __instance)
+        {
+            __instance.NetFields.AddField()
         }
     }
 }

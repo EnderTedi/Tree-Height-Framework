@@ -1,5 +1,5 @@
-﻿using StardewValley;
-using StardewValley.TerrainFeatures;
+﻿using Microsoft.Xna.Framework;
+using StardewValley;
 
 namespace TreeSizeFramework
 {
@@ -40,15 +40,5 @@ namespace TreeSizeFramework
         public Season? Season;
 
         public string Texture = null!;
-    }
-
-    public class TreeSizeFarmeworkSaveData
-    {
-        public Dictionary<Tree, List<TreeTextureData>> WildTreeTextures { get; set; } = new();
-        public int Trees { get; set; } = 0;
-        public Dictionary<Tree, string> WildTrees { get; set; } = new();
-        public Dictionary<FruitTree, List<TreeTextureData>> FruitTreeTextures { get; set; } = new();
-        public int FTrees { get; set; } = 0;
-        public Dictionary<FruitTree, string> FruitTrees { get; set; } = new();
     }
 }
