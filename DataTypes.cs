@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using StardewValley;
+using StardewValley.TerrainFeatures;
 
 namespace TreeSizeFramework
 {
@@ -14,8 +15,6 @@ namespace TreeSizeFramework
         public int TreeWidth { get; set; } = 3;
 
         public int BoundingBoxWidth { get; set; } = 1;
-
-        public string UpdateRate { get; set; } = "TimeChanged, LocationChanged, DayStarted";
     }
 
     public class CWildTreeData
@@ -29,8 +28,6 @@ namespace TreeSizeFramework
         public int TreeWidth { get; set; } = 3;
 
         public int BoundingBoxWidth { get; set; } = 1;
-
-        public string UpdateRate { get; set; } = "TimeChanged, LocationChanged, DayStarted";
     }
 
     public class TreeTextureData

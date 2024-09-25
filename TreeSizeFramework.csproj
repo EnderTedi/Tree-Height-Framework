@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 		<Name>Tree Size Framework</Name>
-		<Version>1.1.0</Version>
+		<Version>1.2.0</Version>
 		<Authors>EnderTedi</Authors>
 		<UniqueID>EnderTedi.TreeSizeFramework</UniqueID>
 	  <MinimumApiVersion>4.0.0</MinimumApiVersion>
@@ -13,11 +13,6 @@
 		<UpdateKeys>Nexus:27123</UpdateKeys>
 	  <EnableHarmony>true</EnableHarmony>
   </PropertyGroup>
-	
-	
-	<ItemGroup>
-		<SMAPIDependency Include="spacechase0.SpaceCore" Version="1.25.0" Reference="true" />
-	</ItemGroup>
 	
   <ItemGroup>
     <PackageReference Include="Leclair.Stardew.ModManifestBuilder" Version="2.3.1" />
