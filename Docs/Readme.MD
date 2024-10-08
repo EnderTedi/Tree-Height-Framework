@@ -38,11 +38,11 @@ Field | Description
 ### Tree Sprites
 The texture for Trees should be as follows:
 Width: `TreeWidth` * 16 Pixels. For a tree with a width of 3 that would be 48 pixels wide.
-Height: `TreeHeight` * 16 Pixels. For a tree with a dirth of 6 that would be 96 pixels tall.
+Height: `TreeHeight` * 16 Pixels. For a tree with a height of 6 that would be 96 pixels tall.
 
 The texture for the Stump should be as follows:
 Width: `TreeWidth` * 16 Pixels. For a tree with a width of 3 that would be 48 pixels wide.
-Height: `TreeHeight` * 16 Pixels. For a tree with a dirth of 6 that would be 96 pixels tall.
+Height: 32 pixels.
 
 You are highly encouraged to also provide a default texture when adding a custom tree to `Data/WildTrees` or `Data/FruitTrees` as that will be the texture used if there's an error with your `WildTreeData` or this mod is uninstalled or stops working.
 
