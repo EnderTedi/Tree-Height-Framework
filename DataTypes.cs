@@ -15,6 +15,10 @@ namespace TreeSizeFramework
         public int TreeWidth { get; set; } = 3;
 
         public int BoundingBoxWidth { get; set; } = 1;
+
+        public bool Light { get; set; } = false;
+
+        public LightData LightData { get; set; } = new();
     }
 
     public class CWildTreeData
@@ -28,6 +32,10 @@ namespace TreeSizeFramework
         public int TreeWidth { get; set; } = 3;
 
         public int BoundingBoxWidth { get; set; } = 1;
+
+        public bool Light { get; set; } = false;
+
+        public LightData LightData { get; set; } = new();
     }
 
     public class TreeTextureData
@@ -37,5 +45,16 @@ namespace TreeSizeFramework
         public Season? Season;
 
         public string Texture = null!;
+    }
+
+    public class LightData
+    {
+        public float Radius { get; set; } = 2;
+
+        public string? Color { get; set; }
+
+        public bool NightOnly { get; set; } = false;
+
+        public bool GrownOnly { get; set; } = false;
     }
 }

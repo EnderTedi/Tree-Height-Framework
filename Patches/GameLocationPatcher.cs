@@ -4,12 +4,12 @@ using StardewValley.TerrainFeatures;
 using StardewValley.Tools;
 using StardewValley;
 using Microsoft.Xna.Framework;
+using TreeSizeFramework.Managers;
 
 namespace TreeSizeFramework.Patches
 {
     internal class GameLocationPatcher
     {
-
         [HarmonyPatch(typeof(GameLocation), nameof(GameLocation.performToolAction))]
         public static class PerformToolAction
         {
@@ -91,8 +91,8 @@ namespace TreeSizeFramework.Patches
         {
             public static bool Prefix(GameLocation __instance, Vector2 tile, ref bool __result)
             {
-                var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
-                var tData2 = Game1.content.Load<Dictionary<string, CFruitTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/FruitTreeData");
+                var tData = AssetManager.WildData;
+                var tData2 = AssetManager.FruitData;
                 foreach (TerrainFeature feature in __instance.terrainFeatures.Values)
                 {
                     if (feature is Tree tree && tData.TryGetValue(tree.treeType.Value, out var treeData))

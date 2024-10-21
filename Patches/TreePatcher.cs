@@ -4,11 +4,13 @@ using StardewModdingAPI;
 using StardewValley.TerrainFeatures;
 using StardewValley;
 using Microsoft.Xna.Framework;
+using TreeSizeFramework.Managers;
 
 namespace TreeSizeFramework.Patches
 {
     internal class TreePatcher
     {
+
         [HarmonyPatch(typeof(Tree), "draw", new Type[] { typeof(SpriteBatch) })]
         public static class TreeDraw
         {
@@ -19,14 +21,14 @@ namespace TreeSizeFramework.Patches
                     return true;
                 }
 
-                var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
+                var tData = AssetManager.WildData;
                 if (!tData.TryGetValue(__instance.treeType.Value, out var treeData))
                 {
                     return true;
                 }
 
-                Texture2D? texture = ModEntry.GetTexture(treeData.Textures, false, tree: __instance);
-                Texture2D? stumpTexture = ModEntry.GetTexture(treeData.StumpTextures, true, tree: __instance);
+                Texture2D? texture = TextureManager.GetTexture(treeData.Textures, false, tree: __instance);
+                Texture2D? stumpTexture = TextureManager.GetTexture(treeData.StumpTextures, true, tree: __instance);
                 Vector2 tileLocation = __instance.Tile;
                 float baseSortPosition = __instance.getBoundingBox().Bottom;
 
@@ -69,7 +71,7 @@ namespace TreeSizeFramework.Patches
         {
             public static bool Prefix(Tree __instance, ref Rectangle __result)
             {
-                var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
+                var tData = AssetManager.WildData;
                 if (tData.ContainsKey(__instance.treeType.Value))
                 {
                     var treeData = tData[__instance.treeType.Value];
@@ -91,7 +93,7 @@ namespace TreeSizeFramework.Patches
         {
             public static bool Prefix(Tree __instance, ref Rectangle __result)
             {
-                var tData = Game1.content.Load<Dictionary<string, CWildTreeData>>($"{ModEntry.instance.ModManifest.UniqueID}/WildTreeData");
+                var tData = AssetManager.WildData;
                 Vector2 tileLocation = __instance.Tile;
                 if (__instance.stump.Value || __instance.growthStage.Value < 5 || !tData.TryGetValue(__instance.treeType.Value, out var treeData))
                 {
